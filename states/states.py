@@ -1,0 +1,32 @@
+from aiogram.fsm.state import StatesGroup, State
+
+
+# class FSMCreateProduct(StatesGroup):
+#     set_name = State()
+#     set_picture = State()
+#     set_description = State()
+#     set_categories = State()
+#     set_stock = State()
+#     finish = State()
+
+
+class FSMEditProducts(StatesGroup):
+    select_product = State()
+    select_field = State()
+    edit_field = State()
+    save = State()
+
+
+class FSMUpdateCatalog(StatesGroup):
+    set_pictures = State()
+
+
+class FSMGetCatalog(StatesGroup):
+    navigate = State()
+
+
+class FSMSignUp(StatesGroup):
+    get_full_name = State()
+    get_number = State()
+    get_address = State()
+    get_postal_code = State()

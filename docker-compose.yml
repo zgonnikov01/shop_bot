@@ -1,0 +1,39 @@
+services:
+  shop-bot:
+    container_name: shop_bot
+    working_dir: /shop_bot
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "python bot.py"
+    depends_on:
+      - redis
+      - db
+    environment:
+      - TZ=Europe/Moscow
+  redis:
+    container_name: shop_bot_redis
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - 6378:6378
+    volumes:
+      - redis_data:/data
+    environment:
+      - TZ=Europe/Moscow
+  db:
+    container_name: shop_bot_db
+    image: postgres:15
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - 4444:5432
+    environment:
+      - TZ=Europe/Moscow
+    env_file: ".env"
+
+volumes:
+  postgres_data:
+  redis_data:
