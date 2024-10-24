@@ -27,7 +27,7 @@ config = load_config()
 #bot_token = env.str('BOT_TOKEN')
 #bot_token = env.str('TEST_TOKEN')
 
-bot_token = config.TgBot.token
+bot_token = config.tg_bot.token
 
 
 redis = Redis(host='redis', port=6379)
