@@ -22,7 +22,7 @@ def create_product_card_keyboard(
     catalog_size: int
 ) -> InlineKeyboardMarkup:
     kb_builder = InlineKeyboardBuilder()
-
+    
     if in_cart > 0:
         keys = {
             '-': '-',
