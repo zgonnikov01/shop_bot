@@ -8,9 +8,12 @@ from environs import Env
 import handlers.admin.basic
 import handlers.admin.add_products
 import handlers.admin.edit_products
+import handlers.admin.manage_track_numbers
 
 import handlers.user.basic
 import handlers.user.sign_up
+import handlers.user.cart
+import handlers.user.catalog
 
 from db.methods import create_db_and_tables
 
@@ -42,14 +45,18 @@ dp.include_routers(
     handlers.admin.basic.router,
     handlers.admin.add_products.router,
     handlers.admin.edit_products.router,
+    handlers.admin.manage_track_numbers.router,
 
     handlers.user.basic.router,
-    handlers.user.sign_up.router
+    handlers.user.sign_up.router,
+    handlers.user.cart.router,
+    handlers.user.catalog.router
 )
 
 
 
 async def main():
+    print('Bot is running')
     await dp.start_polling(bot)
 
 

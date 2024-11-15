@@ -6,6 +6,7 @@ from db.models import Base, User, Product, Order, OrderItem, Cart, CartItem
 import sheets
 import sheets.orders
 import sheets.products
+import sheets.users
 
 config = load_config()
 db_url = config.db.url
@@ -117,8 +118,6 @@ def create_order(telegram_id, delivery_cost):
             session.add(order_item)
         session.commit()
 
-        delivery_cost = 0
-
         update_order(
             customer_id=user.id,
             order_id=new_order.id,
@@ -133,7 +132,7 @@ def create_order(telegram_id, delivery_cost):
         # customer_id=mapped_column(ForeignKey('users.id')
         # customer_telegram_handle = mapped_column(ForeignKey('telegram_handle'))
         # items: Mapped[list['OrderItem']] = relationship()
-        # status: Mapped[str]
+        # status: Mapped[str]¡¡
         # products_cost: Mapped[int]
         # delivery_cost: Mapped[int]
         # total: Mapped[int]
@@ -144,7 +143,7 @@ def create_order(telegram_id, delivery_cost):
 
         sheets.orders.create(new_order, get_order_items_names(order_id=new_order.id))
 
-        clear_cart(cart_id=cart.id)
+        # clear_cart(cart_id=cart.id)
         
         return new_order
 
@@ -172,6 +171,18 @@ def get_user(user_id: int) -> User:
     with Session(engine) as session:
         user = session.query(User).filter_by(id=user_id).options(selectinload(User.cart)).first()
         return user
+    
+def get_user_data_by_tg_id_fancy(user_tg_id, minimize=False):
+    user = get_user_by_telegram_id(user_tg_id)
+    data = [
+        f'ID: <a href="tg://user?id={user_tg_id}">{user_tg_id}</a>',
+        f'Ник в телеграм: {"@" + user.telegram_handle if user.telegram_handle else "-"}'
+    ] if not minimize else [] + [
+        f'Телефон: {user.phone_number}',
+        f'Адрес: {user.address}',
+        f'Почтовый индекс: {user.postal_code}'
+    ]
+    return '\n'.join(data)
 
 
 def get_user_by_telegram_id(telegram_id):
@@ -194,6 +205,59 @@ def get_cart_items_by_telegram_id(telegram_id) -> list[CartItem]:
         return cart_items
     
 
+def get_cart_items_by_telegram_id_fancy(telegram_id) -> str:
+    with Session(engine) as session:
+        user = session.query(User).filter_by(telegram_id=telegram_id).first()
+        cart = user.cart
+        cart_items = session.query(CartItem).filter_by(cart_id=cart.id).all()
+        result = []
+        current_total = 0
+        for cart_item in cart_items:
+            product = get_product(cart_item.product_id)
+            price = product.price
+            quantity = cart_item.quantity
+            current_total += quantity * price
+            result.append(
+            f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.'
+            )
+        update_cart(cart_id=cart.id, total=current_total)
+
+        if cart.total < 5000:
+            delivery_cost = 300
+        else:
+            delivery_cost = 0
+
+        result.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
+        result.append(f'\nОбщая сумма: {cart.total + delivery_cost}р.')
+        result = '\n'.join(result)
+        return result
+    
+
+def get_order_items_fancy(order_id) -> str:
+    with Session(engine) as session:
+        order_items = session.query(OrderItem).filter_by(order_id=order_id).all()
+        result = []
+        total = 0
+        for order_item in order_items:
+            product = get_product(order_item.product_id)
+            price = product.price
+            quantity = order_item.quantity
+            total += quantity * price
+            result.append(
+            f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.'
+            )
+
+        if total < 5000:
+            delivery_cost = 300
+        else:
+            delivery_cost = 0
+
+        result.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
+        result.append(f'\nОбщая сумма: {total + delivery_cost}р.')
+        result = '\n'.join(result)
+        return result
+    
+
 def get_cart_item_by_telegram_id(telegram_id, product_id):
     with Session(engine) as session:
         try:
@@ -213,13 +277,18 @@ def create_user(telegram_id, telegram_handle, name, phone_number, address, posta
             name=name,
             phone_number=phone_number,
             address=address,
-            postal_code=postal_code
+            postal_code=postal_code,
+            cart_msg_id='',
+            catalog_msg_id=''
         )
         session.add(new_user)
         session.commit()
         new_user.cart = create_cart(owner_id=new_user.id)
         session.commit()    
         session.refresh(new_user)
+
+        sheets.users.create(new_user)
+
         return new_user
 
 
@@ -233,6 +302,9 @@ def update_user(user_id, **kwargs):
                 setattr(user, key, value)
         session.commit()
         session.refresh(user)
+
+        sheets.users.update(user)
+
         return user
 
 
@@ -264,10 +336,9 @@ def clear_cart(cart_id):
         #cart_items = session.delete(CartItem).where(cart_id=cart_id)
         session.execute(delete(CartItem).where(CartItem.cart_id == cart_id))
         session.commit()
-        print('trying to clear cart')
         cart = session.query(Cart).filter_by(id=cart_id).first()
         cart.total = 0
-        
+        session.commit()
 
 
 def update_cart(cart_id, **kwargs):

@@ -30,3 +30,10 @@ class FSMSignUp(StatesGroup):
     get_number = State()
     get_address = State()
     get_postal_code = State()
+
+
+class FSMPayment(StatesGroup):
+    confirm = State()
+
+class FSMAddTrackingNumber(StatesGroup):
+    request_number = State()

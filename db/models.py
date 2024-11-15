@@ -9,43 +9,33 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 Base = declarative_base()
 intpk = Annotated[int, mapped_column(primary_key=True)]
-created_at = Annotated[datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"))]
+created_at = Annotated[datetime.datetime, mapped_column(default=datetime.datetime.now)]
 
 class User(Base):
     __tablename__ = 'users'
-    id = Column(
-        Integer, 
-        nullable=False,
-        unique=True,
-        primary_key=True,
-        autoincrement=True
-    )
-    telegram_id = Column(BigInteger, index=True)
-    telegram_handle = Column(String, index=True)
-    name = Column(String)
-    phone_number = Column(String)
+    id: Mapped[intpk]
+    telegram_id: Mapped[int]
+    telegram_handle: Mapped[str]
+    name: Mapped[str]
+    phone_number: Mapped[str]
     address: Mapped[str]
     postal_code: Mapped[str]
     cart: Mapped['Cart'] = relationship()
     created_at: Mapped[created_at]
-
+    cart_msg_id: Mapped[str]
+    catalog_msg_id: Mapped[str]
+    
 
 class Product(Base):
     __tablename__ = 'products'
-    id = Column(
-        Integer, 
-        nullable=False,
-        unique=True,
-        primary_key=True,
-        autoincrement=True
-    )
-    name = Column(String, index=True)
-    description = Column(String)
-    categories = Column(String)
-    stock = Column(Integer)
-    picture = Column(String)
-    price = Column(BigInteger)
-    variant = Column(String)
+    id: Mapped[intpk]
+    name: Mapped[str]
+    description: Mapped[str]
+    categories: Mapped[str]
+    stock: Mapped[int]
+    picture: Mapped[str]
+    price: Mapped[int]
+    variant: Mapped[str]
 
 
 class Order(Base):
@@ -59,7 +49,6 @@ class Order(Base):
     total: Mapped[int]
     tracking_number: Mapped[str]
     created_at: Mapped[created_at]
-
 
 
 class OrderItem(Base):

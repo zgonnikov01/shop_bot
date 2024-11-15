@@ -37,11 +37,11 @@ def get_orders() -> list[dict]:
             }
         )
         
-    return products
+    return orders
 
 
 def get_order(order_id) -> dict | None:
-    order = get_products()
+    orders = get_orders()
     for order in orders:
         if int(order['id']) == order_id:
             return order
@@ -96,5 +96,6 @@ def update_order_in_sheet(order: Order, order_items_names: list):
             print(f"Order updated successfully.")
         except Exception as e:
             print(f"Failed to update order {order.id}: {e}")
-        else:
-            print(f"Order not found in the spreadsheet.")
+    else:
+        print(f"Order not found in the spreadsheet.")
+        
