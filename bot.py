@@ -15,9 +15,11 @@ import handlers.user.sign_up
 import handlers.user.cart
 import handlers.user.catalog
 
-from db.methods import create_db_and_tables
+from db.methods import create_db_and_tables, get_products_fancy
 
 from config import load_config
+
+from lexicon.lexicon_ru import Lexicon
 
 
 create_db_and_tables()
@@ -56,7 +58,10 @@ dp.include_routers(
 
 
 async def main():
+    await bot.set_my_description(Lexicon.Admin.bot_description + get_products_fancy())
+
     print('Bot is running')
+
     await dp.start_polling(bot)
 
 

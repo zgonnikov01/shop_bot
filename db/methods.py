@@ -28,6 +28,14 @@ def get_products():
     with Session(engine) as session:
         return session.query(Product).order_by(Product.id).all()
 
+def get_products_fancy():
+    with Session(engine) as session:
+        products = session.query(Product).order_by(Product.id).all()
+        products_pretty = []
+        for product in products:
+            products_pretty.append(f'{product.name}: {product.price}р.')
+        return '\n'.join(products_pretty)
+
 
 def create_product(name, description, categories, stock, picture, price, variant) -> Product:
     with Session(engine) as session:  

@@ -7,7 +7,7 @@ from aiogram.fsm.state import default_state
 import sheets.products
 from states.states import FSMUpdateCatalog
 from db.models import Product
-from db.methods import create_product, update_product, get_products, get_product
+from db.methods import create_product, update_product, get_products, get_product, get_products_fancy
 from keyboards.keyboards import create_inline_kb
 from lexicon.lexicon_ru import Lexicon
 from config import load_config
@@ -78,7 +78,7 @@ router.message.filter(lambda message: message.from_user.id in config.tg_bot.admi
 
 
 @router.message(Command(commands='update_catalog'))
-async def update_catalog(message: Message, state: FSMContext):
+async def update_catalog(message: Message, state: FSMContext, bot: Bot):
     products_to_be_updated = []
     update_required = False
     try:
@@ -116,6 +116,8 @@ async def update_catalog(message: Message, state: FSMContext):
             await state.set_state(FSMUpdateCatalog.set_pictures)
         else:
             await message.answer(Lexicon.Admin.update_catalog__success)
+        
+        await bot.set_my_description(Lexicon.Admin.bot_description + get_products_fancy())
             
     except Exception as e:
         print(e)
