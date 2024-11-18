@@ -41,12 +41,23 @@ async def sign_up_get_full_name(message: Message, bot: Bot, state: FSMContext):
     await state.set_state(FSMSignUp.get_number)
 
 
+
+
 @router.message(StateFilter(FSMSignUp.get_number))
 @router.business_message(StateFilter(FSMSignUp.get_number))
 async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
-    await state.update_data(number=message.text)
-    await message.answer(Lexicon.User.sign_up__get_address)
-    await state.set_state(FSMSignUp.get_address)
+    try:
+        trimmed = message.text.replace(' ', '').replace('-', '')
+        if len(trimmed) > 12 or len(trimmed) < 10:
+            raise Exception
+        number = '+7' + trimmed[:10]
+
+        await state.update_data(number=number)
+        await message.answer(Lexicon.User.sign_up__get_address)
+        await state.set_state(FSMSignUp.get_address)
+
+    except Exception as e:
+        await message.answer(Lexicon.User.sign_up__incorrect_number)
 
 
 @router.message(StateFilter(FSMSignUp.get_address))
