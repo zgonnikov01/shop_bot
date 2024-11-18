@@ -50,7 +50,7 @@ async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
         trimmed = message.text.replace(' ', '').replace('-', '')
         if len(trimmed) > 12 or len(trimmed) < 10:
             raise Exception
-        number = '+7' + trimmed[:10]
+        number = '+7' + trimmed[-10:]
 
         await state.update_data(number=number)
         await message.answer(Lexicon.User.sign_up__get_address)

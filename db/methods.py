@@ -185,7 +185,8 @@ def get_user_data_by_tg_id_fancy(user_tg_id, minimize=False):
     data = [
         f'ID: <a href="tg://user?id={user_tg_id}">{user_tg_id}</a>',
         f'Ник в телеграм: {"@" + user.telegram_handle if user.telegram_handle else "-"}'
-    ] if not minimize else [] + [
+    ] if not minimize else []
+    data += [
         f'Телефон: {user.phone_number}',
         f'Адрес: {user.address}',
         f'Почтовый индекс: {user.postal_code}'
