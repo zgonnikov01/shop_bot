@@ -26,6 +26,14 @@ config = load_config()
 
 router = Router()
 
+
+@router.callback_query(F.data == 'sign_up')
+async def sign_up_from_callback(callback: CallbackQuery, bot: Bot, state: FSMContext):
+    await callback.message.answer(Lexicon.User.sign_up__get_full_name)
+    await state.set_state(FSMSignUp.get_full_name)
+    await callback.answer()
+
+
 @router.message(Command(commands='sign_up'))
 @router.business_message(Command(commands='sign_up'))
 async def sign_up(message: Message, bot: Bot, state: FSMContext):

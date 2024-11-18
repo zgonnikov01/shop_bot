@@ -89,12 +89,29 @@ async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=
         # TODO Рассчитать стоимость доставки
 
         msg.append(f'Общая сумма: {cart.total + delivery_cost}р.')
+
+        # Просим пользователя проверить свои данные
+
         msg = '\n'.join(msg)
-        reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Оформить заказ', callback_data='order')]])
+        reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Оформить заказ', callback_data='order_check_data')]])
         sent_msg = await message.answer(text=msg, reply_markup=reply_markup)
         update_user(user.id, cart_msg_id=sent_msg.message_id)
     if not from_catalog:
         await message.delete()
+
+
+@router.callback_query(F.data == 'order_check_data')
+async def process_order__check_data(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    msg = Lexicon.User.process_order__check_data + get_user_data_by_tg_id_fancy(user_tg_id=callback.from_user.id, minimize=True)
+    reply_markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='Редактировать мои данные', callback_data='sign_up')],
+            [InlineKeyboardButton(text='Оформить заказ', callback_data='order')]
+        ]
+    )
+
+    await callback.message.answer(text=msg, reply_markup=reply_markup)
+    await callback.answer()
 
 
 @router.callback_query(F.data == 'order')
