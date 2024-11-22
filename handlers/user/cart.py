@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from db.methods import (
     clear_cart,
     get_cart_items_by_telegram_id_fancy,
+    get_order_items_for_lifepay,
     get_order,
     get_order_items_names,
     get_product, 
@@ -146,13 +147,14 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
     user = get_user_by_telegram_id(callback.from_user.id)
     cart = get_cart_by_telegram_id(callback.from_user.id)
-    delivery_cost = 300 if cart.total < 5000 else 0
+    delivery_cost = 350 if cart.total < 5000 else 0
     order = create_order(telegram_id=callback.from_user.id, delivery_cost=delivery_cost)
+    description = get_order_items_for_lifepay(order_id=order.id)
     try:
 
         bill = create_bill(
             amount=order.total,
-            description='test',
+            description=description,
             customer_phone=user.phone_number.strip('+').replace(' ', '')
         )
 

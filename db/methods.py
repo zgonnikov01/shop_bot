@@ -265,6 +265,20 @@ def get_order_items_fancy(order_id) -> str:
         result.append(f'\nОбщая сумма: {total + delivery_cost}р.')
         result = '\n'.join(result)
         return result
+
+
+def get_order_items_for_lifepay(order_id) -> str:
+    with Session(engine) as session:
+        order_items = session.query(OrderItem).filter_by(order_id=order_id).all()
+        result = []
+        for order_item in order_items:
+            product = get_product(order_item.product_id)
+            quantity = order_item.quantity
+            result.append(f'{product.name} x {quantity}.0 = {product.price * quantity}.00')
+        order = session.query(Order).filter_by(id=order_id).first()
+        if order.delivery_cost > 0:
+            result.append(f'Услуги сервиса доставки x {1}.0 = {order.delivery_cost}.00')
+        return ', '.join(result)
     
 
 def get_cart_item_by_telegram_id(telegram_id, product_id):
