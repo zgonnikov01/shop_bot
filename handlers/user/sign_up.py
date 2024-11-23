@@ -35,14 +35,12 @@ async def sign_up_from_callback(callback: CallbackQuery, bot: Bot, state: FSMCon
 
 
 @router.message(Command(commands='sign_up'))
-@router.business_message(Command(commands='sign_up'))
 async def sign_up(message: Message, bot: Bot, state: FSMContext):
     await message.answer(Lexicon.User.sign_up__get_full_name)
     await state.set_state(FSMSignUp.get_full_name)
 
 
 @router.message(StateFilter(FSMSignUp.get_full_name))
-@router.business_message(StateFilter(FSMSignUp.get_full_name))
 async def sign_up_get_full_name(message: Message, bot: Bot, state: FSMContext):
     await state.update_data(full_name=message.text)
     await message.answer(Lexicon.User.sign_up__get_number)
@@ -52,7 +50,6 @@ async def sign_up_get_full_name(message: Message, bot: Bot, state: FSMContext):
 
 
 @router.message(StateFilter(FSMSignUp.get_number))
-@router.business_message(StateFilter(FSMSignUp.get_number))
 async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
     try:
         trimmed = message.text.replace(' ', '').replace('-', '')
@@ -69,7 +66,6 @@ async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
 
 
 @router.message(StateFilter(FSMSignUp.get_address))
-@router.business_message(StateFilter(FSMSignUp.get_address))
 async def sign_up_get_postal_code(message: Message, bot: Bot, state: FSMContext):
     await state.update_data(address=message.text)
     await message.answer(Lexicon.User.sign_up__get_postal_code)
@@ -77,7 +73,6 @@ async def sign_up_get_postal_code(message: Message, bot: Bot, state: FSMContext)
 
 
 @router.message(StateFilter(FSMSignUp.get_postal_code))
-@router.business_message(StateFilter(FSMSignUp.get_postal_code))
 async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
     postal_code = message.text
     data = await state.get_data()

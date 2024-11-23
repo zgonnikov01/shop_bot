@@ -37,8 +37,17 @@ async def delete_catalog_message(message, user, bot):
         update_user(user.id, catalog_msg_id='')
 
 
+def get_product_card_caption(name, description, price, discount=0, fold=True):
+    if fold:
+        description = description[:50] + ('...' if len(description) > 50 else '')
+    if discount > 0:
+        price_info = f'🔥Актуальная цена: <s>{price}₽</s> {price - discount}₽'
+    else:
+        price_info = f'🔥Актуальная цена: {price}₽'
+    return f'<b>{name}</b>\n{description}\n{price_info}'
+
+
 @router.message(Command(commands='catalog'))
-@router.business_message(Command(commands='catalog'))
 async def get_catalog(message: Message, bot: Bot, state: FSMContext):
     user = get_user_by_telegram_id(message.from_user.id)
     await delete_catalog_message(message, user, bot)
@@ -65,7 +74,13 @@ async def get_catalog(message: Message, bot: Bot, state: FSMContext):
         catalog_size=len(products)
     )
     
-    caption = f'<b>{product.name}</b>\n{product.description[:50]}...\n🔥Актуальная цена: {product.price}₽'
+    caption = get_product_card_caption(
+        name=product.name,
+        description=product.description,
+        price=product.price,
+        discount=product.discount,
+        fold=True
+    )
     
     await bot.send_photo(
         business_connection_id=message.business_connection_id,
@@ -98,8 +113,10 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
     # if item:
     #     order_button = f'В корзине: {item.quantity}'
 
+    cart = get_cart_by_telegram_id(callback.from_user.id)
+    user = get_user_by_telegram_id(callback.from_user.id)
+
     if callback_data.button in ('order', '+'):
-        cart = get_cart_by_telegram_id(callback.from_user.id)
         cart_item = add_item_to_cart(cart_id=cart.id, product_id=product.id)
         if cart_item == None:
             await callback.answer(text=Lexicon.User.process_catalog_navigation__not_enough_product, show_alert=True)
@@ -111,14 +128,12 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
         in_cart = cart_item.quantity
         
     elif callback_data.button == '-':
-        cart = get_cart_by_telegram_id(callback.from_user.id)
         remove_item_from_cart(cart_id=cart.id, product_id=product.id)
         cart_item = get_cart_item_by_telegram_id(telegram_id=callback.from_user.id, product_id=product.id)
         if cart_item:
             in_cart = cart_item.quantity
         else:
             in_cart = 0
-        user = get_user_by_telegram_id(callback.from_user.id)
         if user.cart_msg_id:
             await show_cart(message=callback.message, bot=bot, state=state, from_catalog=True)
         
@@ -135,10 +150,15 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
             media=InputMediaPhoto(media=product.picture)
         )
 
-        caption = f'<b>{product.name}</b>\n{product.description[:50]}...\n🔥Актуальная цена: {product.price}₽'
+        caption = get_product_card_caption(
+            name=product.name,
+            description=product.description,
+            price=product.price,
+            discount=product.discount,
+            fold=True
+        )
 
         await callback.message.edit_caption(
-            business_connection_id=callback.message.business_connection_id,
             caption=caption,
             parse_mode=ParseMode.HTML
         )
@@ -161,12 +181,14 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
         if cart_item:
             in_cart = cart_item.quantity
             
-        if callback_data.button == 'description_unfold':
-            caption = f'<b>{product.name}</b>\n{product.description}\n🔥Актуальная цена: {product.price}₽'
-            description_button_action = 'fold'
-        else:
-            caption = f'<b>{product.name}</b>\n{product.description[:50]}...\n🔥Актуальная цена: {product.price}₽'
-            description_button_action = 'unfold'
+        caption = get_product_card_caption(
+            name=product.name,
+            description=product.description,
+            price=product.price,
+            discount=product.discount,
+            fold=callback_data.button == 'description_fold'
+        )
+        description_button_action = 'unfold' if callback_data.button == 'description fold' else 'fold'
 
         await callback.message.edit_caption(
             business_connection_id=callback.message.business_connection_id,

@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from db.methods import (
     create_cart,
     create_user,
+    clear_cart,
     get_user_by_telegram_id
 )
 from lexicon.lexicon_ru import Lexicon
@@ -19,12 +20,11 @@ config = load_config()
 router = Router()
 
 
-@router.business_message(CommandStart())
 @router.message(CommandStart())
 async def start(message: Message, bot: Bot):
     await set_user_menu(message.from_user.id, bot)
     if user := get_user_by_telegram_id(telegram_id=message.from_user.id) == None:
-        create_user(
+        user = create_user(
             telegram_id=message.from_user.id,
             telegram_handle=message.from_user.username,
             name='-',
@@ -32,21 +32,22 @@ async def start(message: Message, bot: Bot):
             address='-',
             postal_code='-'
         )
+        create_cart(user.id)
     else:
         if user.cart == None:
             create_cart(user.id)
+        else:
+            clear_cart(user.cart.id)
     
     await message.answer(Lexicon.User.basic__start)
     
 
 @router.message(Command(commands='help'))
-@router.business_message(Command(commands='help'))
 async def show_help(message: Message, bot: Bot, state: FSMContext):
     await message.answer(Lexicon.User.show_help__)
 
 
 @router.message(Command(commands='faq'))
-@router.business_message(Command(commands='faq'))
 async def show_faq(message: Message, bot: Bot, state: FSMContext):
     await message.answer(Lexicon.User.show_faq__)
 

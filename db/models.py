@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 Base = declarative_base()
 intpk = Annotated[int, mapped_column(primary_key=True)]
 created_at = Annotated[datetime.datetime, mapped_column(default=datetime.datetime.now)]
+nullable_datetime = Annotated[datetime.datetime, mapped_column(nullable=True)]
 
 class User(Base):
     __tablename__ = 'users'
@@ -36,6 +37,8 @@ class Product(Base):
     picture: Mapped[str]
     price: Mapped[int]
     variant: Mapped[str]
+    discount: Mapped[int]
+    discount_expire_datetime: Mapped[nullable_datetime]
 
 
 class Order(Base):

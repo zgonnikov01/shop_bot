@@ -28,6 +28,7 @@ def get_products():
     with Session(engine) as session:
         return session.query(Product).order_by(Product.id).all()
 
+
 def get_products_fancy():
     with Session(engine) as session:
         products = session.query(Product).order_by(Product.id).all()
@@ -46,7 +47,8 @@ def create_product(name, description, categories, stock, picture, price, variant
             stock=stock,
             picture=picture,
             price=price,
-            variant=variant
+            variant=variant,
+            discount=0
         )
         session.add(new_product)
         session.commit()
@@ -225,16 +227,18 @@ def get_cart_items_by_telegram_id_fancy(telegram_id) -> str:
             product = get_product(cart_item.product_id)
             price = product.price
             quantity = cart_item.quantity
-            current_total += quantity * price
-            result.append(
-            f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.'
-            )
+            discount = product.discount
+            if discount > 0:
+                result.append(f'<s>{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.</s>')
+                discount_price = price - discount
+                result.append(f'{product.name}: {str(quantity)} * {str(discount_price)}р. = {str(quantity * discount_price)}р.')
+                current_total += quantity * discount_price
+            else:
+                result.append(f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.')
+                current_total += quantity * price
         update_cart(cart_id=cart.id, total=current_total)
 
-        if cart.total < 5000:
-            delivery_cost = 300
-        else:
-            delivery_cost = 0
+        delivery_cost = get_delivery_cost(cart_id=cart.id)
 
         result.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
         result.append(f'\nОбщая сумма: {cart.total + delivery_cost}р.')
@@ -251,20 +255,34 @@ def get_order_items_fancy(order_id) -> str:
             product = get_product(order_item.product_id)
             price = product.price
             quantity = order_item.quantity
-            total += quantity * price
-            result.append(
-            f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.'
-            )
+            discount = product.discount
+            if discount > 0:
+                result.append(f'<s>{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.</s>')
+                discount_price = price - discount
+                result.append(f'{product.name}: {str(quantity)} * {str(discount_price)}р. = {str(quantity * discount_price)}р.')
+                total += quantity * discount_price
+            else:
+                result.append(f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.')
+                total += quantity * price
 
-        if total < 5000:
-            delivery_cost = 300
-        else:
-            delivery_cost = 0
+        delivery_cost = get_delivery_cost(order_id=order_id)
 
         result.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
         result.append(f'\nОбщая сумма: {total + delivery_cost}р.')
         result = '\n'.join(result)
         return result
+
+
+def get_delivery_cost(order_id=None, cart_id=None):
+    with Session(engine) as session:
+        if order_id:
+            total = session.query(Order).filter_by(id=order_id).first().products_cost
+        else:
+            total = session.query(Cart).filter_by(id=cart_id).first().total
+
+    if total < 5000:
+        return 350
+    return 0
 
 
 def get_order_items_for_lifepay(order_id) -> str:

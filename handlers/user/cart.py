@@ -1,5 +1,6 @@
 from aiogram import Router, Bot, F
 from aiogram.filters import Command
+from aiogram.enums.parse_mode import ParseMode
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
@@ -49,7 +50,6 @@ async def delete_cart_message(message, user, bot):
 
 
 @router.message(Command(commands='cart'))
-@router.business_message(Command(commands='cart'))
 async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=False):
     if not get_user_by_telegram_id(message.chat.id):
         await message.answer('Сначала зарегистрируйтесь с помощью /sign_up')
@@ -59,43 +59,22 @@ async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=
             await delete_cart_message(message, user, bot)
         except Exception as e:
             print(e)
-        sent_msg = await message.answer(Lexicon.User.__cart_is_empty)
+        sent_msg = await message.answer(Lexicon.User.msg__cart_is_empty)
         update_user(user.id, cart_msg_id=sent_msg.message_id)
     else:
         user = get_user_by_telegram_id(message.chat.id)
         await delete_cart_message(message, user, bot)
 
-        cart_items = get_cart_items_by_telegram_id(message.chat.id)
-        msg = []
-        current_total = 0
-        for cart_item in cart_items:
-            product = get_product(cart_item.product_id)
-            price = product.price
-            quantity = cart_item.quantity
-            current_total += quantity * price
-            msg.append(
-            f'{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.'
-            )
-        cart = get_cart_by_telegram_id(message.chat.id)
-        update_cart(cart_id=cart.id, total=current_total)
-
-        if cart.total < 5000:
-            delivery_cost = 300
-        else:
-            delivery_cost = 0
-
-        msg.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
-
-        # msg.append(f'Стоимость доставки*: {delivery_cost}р.')
-        # TODO Рассчитать стоимость доставки
-
-        msg.append(f'Общая сумма: {cart.total + delivery_cost}р.')
+        msg = get_cart_items_by_telegram_id_fancy(telegram_id=message.chat.id)
 
         # Просим пользователя проверить свои данные
 
-        msg = '\n'.join(msg)
         reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Оформить заказ', callback_data='order_check_data')]])
-        sent_msg = await message.answer(text=msg, reply_markup=reply_markup)
+        sent_msg = await message.answer(
+            text=msg,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
         update_user(user.id, cart_msg_id=sent_msg.message_id)
     if not from_catalog:
         await message.delete()
@@ -118,7 +97,6 @@ async def process_order__check_data(callback: CallbackQuery, state: FSMContext, 
 @router.callback_query(F.data == 'order')
 async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
     user = get_user_by_telegram_id(callback.from_user.id)
-    print(user)
     if any([x == None or x == '-' for x in [user.name, user.phone_number, user.address, user.postal_code]]):
         await callback.answer(
             text=Lexicon.User.process_order__,
@@ -132,7 +110,7 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
         except Exception as e:
             print(e)
         await callback.answer(
-            text=Lexicon.User.__cart_is_empty,
+            text=Lexicon.User.msg__cart_is_empty,
             show_alert=True
         )
         await state.clear()
@@ -200,9 +178,8 @@ async def confirm_payment(callback: CallbackQuery, callback_data: PaymentCallbac
         if bill_status == 10 or True:
             # Cообщаем пользователю, что заказ успешно оплачен
             await callback.message.answer(
-                f'Заказ {order_id} создан и оплачен. Когда он будет передан в доставку, Вам будет отправлен трек-номер для отслеживания' +
-                '\n\nСостав заказа:\n' + 
-                order_details
+                text=f'Заказ {order_id} создан и оплачен. Когда он будет передан в доставку, Вам будет отправлен трек-номер для отслеживания' + '\n\nСостав заказа:\n' + order_details,
+                parse_mode=ParseMode.HTML
             )
             
             # Удаляем сообщение со ссылкой на оплату

@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from lexicon.lexicon_ru import Lexicon
 from keyboards.set_menu import set_admin_menu
 from config import load_config
-from db.methods import create_cart, get_user_by_telegram_id, create_user
+from db.methods import create_cart, get_user_by_telegram_id, create_user, clear_cart
 
 config = load_config()
 
@@ -30,6 +30,8 @@ async def start(message: Message, bot: Bot):
     else:
         if user.cart == None:
             create_cart(user.id)
+        else:
+            clear_cart(user.cart.id)
 
     await message.answer(Lexicon.Admin.basic__start)
 
