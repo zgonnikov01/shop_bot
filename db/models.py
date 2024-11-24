@@ -39,6 +39,7 @@ class Product(Base):
     variant: Mapped[str]
     discount: Mapped[int]
     discount_expire_datetime: Mapped[nullable_datetime]
+    is_hidden: Mapped[bool]
 
 
 class Order(Base):

@@ -24,21 +24,26 @@ def get_product(product_id=None, product_name=None) -> Product | None:
         return session.query(Product).filter_by(id=product_id).first()
 
 
-def get_products():
+def get_products(include_hidden=False):
     with Session(engine) as session:
-        return session.query(Product).order_by(Product.id).all()
+        if include_hidden:
+            return session.query(Product).order_by(Product.id).all()
+        return session.query(Product).filter_by(is_hidden=False).order_by(Product.id).all()
 
 
-def get_products_fancy():
+def get_products_fancy(include_hidden=False):
     with Session(engine) as session:
-        products = session.query(Product).order_by(Product.id).all()
+        if include_hidden:
+            return session.query(Product).order_by(Product.id).all()
+        else:
+            products = session.query(Product).filter_by(is_hidden=False).order_by(Product.id).all()
         products_pretty = []
         for product in products:
             products_pretty.append(f'{product.name}: {product.price}р.')
         return '\n'.join(products_pretty)
 
 
-def create_product(name, description, categories, stock, picture, price, variant) -> Product:
+def create_product(name, description, categories, stock, picture, price, variant, is_hidden=False) -> Product:
     with Session(engine) as session:  
         new_product = Product(
             name=name,
@@ -48,7 +53,8 @@ def create_product(name, description, categories, stock, picture, price, variant
             picture=picture,
             price=price,
             variant=variant,
-            discount=0
+            discount=0,
+            is_hidden=is_hidden
         )
         session.add(new_product)
         session.commit()
@@ -82,23 +88,38 @@ def get_orders():
     
 
 def check_and_fix_cart_stock(telegram_id) -> str | None:
-    with Session(engine) as session:
-        user = get_user_by_telegram_id(telegram_id=telegram_id)
-        cart_items = sorted(get_cart_items_by_telegram_id(telegram_id=telegram_id), key=lambda item: item.id)
-        products = sorted(sheets.products.get_products(), key=lambda item: item['id'])
-        
-        deleted = {}
-        for index, cart_item in enumerate(cart_items):
-            product = products[index]
-            while cart_item and cart_item.quantity > int(product['stock']):
-                if product['name'] not in deleted:
-                    deleted[product['name']] = 0
-                deleted[product['name']] += 1
-                cart_item = remove_item_from_cart(cart_id=user.cart.id, product_id=int(product['id']))
-        
-        if deleted:
-            return '\n'.join([f'{item}: {value}' for item, value in deleted.items()])
+    user = get_user_by_telegram_id(telegram_id=telegram_id)
+    cart_items = get_cart_items_by_telegram_id(telegram_id=telegram_id)
+    deleted={}
+    for cart_item in cart_items:
+        product = get_product(product_id=cart_item.product_id)
+        if product.is_hidden:
+            deleted[product.name] = cart_item.quantity
+            remove_item_from_cart(cart_id=user.cart.id, product_id=product.id, quantity=cart_item.quantity)
+        elif cart_item.quantity > product.stock:
+            deleted[product.name] = cart_item.quantity - product.stock
+            remove_item_from_cart(cart_id=user.cart.id, product_id=product.id, quantity=(cart_item.quantity - product.stock))
+    if deleted:
+        return '\n'.join([f'{item}: {value}' for item, value in deleted.items()])
 
+
+#def check_and_fix_cart_stock(telegram_id) -> str | None:
+#    with Session(engine) as session:
+#        user = get_user_by_telegram_id(telegram_id=telegram_id)
+#        cart_items = sorted(get_cart_items_by_telegram_id(telegram_id=telegram_id), key=lambda item: item.id)
+#        products = sorted(sheets.products.get_products(), key=lambda item: item['id'])
+#        
+#        deleted = {}
+#        for index, cart_item in enumerate(cart_items):
+#            product = products[index]
+#            while cart_item and cart_item.quantity > int(product['stock']):
+#                if product['name'] not in deleted:
+#                    deleted[product['name']] = 0
+#                deleted[product['name']] += 1
+#                cart_item = remove_item_from_cart(cart_id=user.cart.id, product_id=int(product['id']))
+#        
+#        if deleted:
+#            return '\n'.join([f'{item}: {value}' for item, value in deleted.items()])
 
 
 def create_order(telegram_id, delivery_cost):
@@ -374,7 +395,6 @@ def create_cart(owner_id) -> Cart:
 
 def clear_cart(cart_id):
     with Session(engine) as session:
-        #cart_items = session.delete(CartItem).where(cart_id=cart_id)
         session.execute(delete(CartItem).where(CartItem.cart_id == cart_id))
         session.commit()
         cart = session.query(Cart).filter_by(id=cart_id).first()
@@ -421,7 +441,7 @@ def add_item_to_cart(cart_id, product_id) -> CartItem | str:
             )
         
         cart = session.query(Cart).filter_by(id=cart_id).first()
-        cart.total = cart.total + product.price
+        cart.total = cart.total + product.price - product.discount
         session.commit()
         session.refresh(cart)
         session.add(cart_item)
@@ -430,11 +450,11 @@ def add_item_to_cart(cart_id, product_id) -> CartItem | str:
         return cart_item
     
     
-def remove_item_from_cart(cart_id, product_id):
+def remove_item_from_cart(cart_id, product_id, quantity=1):
     with Session(engine) as session:
         cart = session.query(Cart).filter_by(id=cart_id).first()
         product = session.query(Product).filter_by(id=product_id).first()
-        cart.total = max(0, cart.total - product.price)
+        cart.total = max(0, cart.total - (product.price - product.discount) * quantity)
         session.commit()
         session.refresh(cart)
 
@@ -445,7 +465,7 @@ def remove_item_from_cart(cart_id, product_id):
         
         if cart_item:
             if cart_item.quantity > 1:
-                cart_item.quantity -= 1
+                cart_item.quantity = max(0, cart_item.quantity - quantity)
                 session.commit()
                 session.refresh(cart_item)
             else:
