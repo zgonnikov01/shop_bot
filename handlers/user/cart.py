@@ -54,16 +54,22 @@ async def delete_cart_message(message, user, bot):
 
 
 async def update_cart_message(telegram_id: str, bot: Bot):
-    cart_items_fancy = get_cart_items_by_telegram_id_fancy(telegram_id=telegram_id)
     user = get_user_by_telegram_id(telegram_id=telegram_id)
-    try:
-        await bot.edit_message_text(
-            text=cart_items_fancy,
-            message_id=user.cart_msg_id,
+    if get_cart_by_telegram_id(telegram_id=telegram_id).total == 0:
+        await bot.delete_message(
+            message_id = user.cart_msg_id,
             chat_id=telegram_id
         )
-    except Exception as e:
-        print(e)
+    else:
+        cart_items_fancy = get_cart_items_by_telegram_id_fancy(telegram_id=telegram_id)
+        try:
+            await bot.edit_message_text(
+                text=cart_items_fancy,
+                message_id=user.cart_msg_id,
+                chat_id=telegram_id
+            )
+        except Exception as e:
+            print(e)
 
 
 @router.message(Command(commands='cart'))
@@ -178,7 +184,7 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
         try:
             await bot.delete_message(
                 chat_id=callback.from_user.id,
-                message_id=user.order_msg_id
+                message_id=int(user.order_msg_id)
             )
             update_user(user_id=user.id, order_msg_id=msg.id)
         except Exception as e:

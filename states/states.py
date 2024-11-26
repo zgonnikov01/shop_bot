@@ -28,6 +28,7 @@ class FSMGetCatalog(StatesGroup):
 class FSMSignUp(StatesGroup):
     get_full_name = State()
     get_number = State()
+    get_country = State()
     get_address = State()
     get_postal_code = State()
 

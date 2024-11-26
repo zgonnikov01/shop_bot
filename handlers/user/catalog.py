@@ -50,6 +50,11 @@ def get_product_card_caption(name, description, price, discount=0, fold=True):
 @router.message(Command(commands='catalog'))
 async def get_catalog(message: Message, bot: Bot, state: FSMContext):
     user = get_user_by_telegram_id(message.from_user.id)
+
+    if user.country == '-':
+        await message.answer(Lexicon.User.msg__invalid_country)
+        return
+
     await delete_catalog_message(message, user, bot)
 
     products = get_products()

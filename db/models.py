@@ -19,6 +19,7 @@ class User(Base):
     telegram_handle: Mapped[str]
     name: Mapped[str]
     phone_number: Mapped[str]
+    country: Mapped[str]
     address: Mapped[str]
     postal_code: Mapped[str]
     cart: Mapped['Cart'] = relationship()

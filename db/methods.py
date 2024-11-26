@@ -213,6 +213,7 @@ def get_user_data_by_tg_id_fancy(user_tg_id, minimize=False):
     ] if not minimize else []
     data += [
         f'Телефон: {user.phone_number}',
+        f'Страна: {user.country}',
         f'Адрес: {user.address}',
         f'Почтовый индекс: {user.postal_code}'
     ]
@@ -263,7 +264,7 @@ def get_cart_items_by_telegram_id_fancy(telegram_id) -> str:
 
         delivery_cost = get_delivery_cost(cart_id=cart.id)
 
-        result.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
+        result.append(f'Стоимость доставки: {delivery_cost}р.')
         result.append(f'\nОбщая сумма: {cart.total + delivery_cost}р.')
         result = '\n'.join(result)
         return result
@@ -290,7 +291,7 @@ def get_order_items_fancy(order_id) -> str:
 
         delivery_cost = get_delivery_cost(order_id=order_id)
 
-        result.append(f'Стоимость доставки по РФ: {delivery_cost}р.')
+        result.append(f'Стоимость доставки: {delivery_cost}р.')
         result.append(f'\nОбщая сумма: {total + delivery_cost}р.')
         result = '\n'.join(result)
         return result
@@ -311,13 +312,23 @@ def decrease_stock(order_id):
 def get_delivery_cost(order_id=None, cart_id=None):
     with Session(engine) as session:
         if order_id:
-            total = session.query(Order).filter_by(id=order_id).first().products_cost
+            order = session.query(Order).filter_by(id=order_id).first()
+            total = order.products_cost
+            user = session.query(User).filter_by(id=order.customer_id).first()
         else:
-            total = session.query(Cart).filter_by(id=cart_id).first().total
+            cart = session.query(Cart).filter_by(id=cart_id).first()
+            total = cart.total
+            user = session.query(User).filter_by(id=cart.owner_id).first()
+         
+        if total < 5000:
+            if user.country == 'Россия 🇷🇺':
+                return 350
+            if user.country == 'Казахстан 🇰🇿':
+                return 1000
+            if user.country == 'Беларусь 🇧🇾':
+                return 2000
 
-    if total < 5000:
-        return 350
-    return 0
+        return 0
 
 
 def get_order_items_for_lifepay(order_id) -> str:
@@ -350,13 +361,14 @@ def get_users():
         return session.query(User).all()
 
 
-def create_user(telegram_id, telegram_handle, name, phone_number, address, postal_code):
+def create_user(telegram_id, telegram_handle, name, phone_number, country, address, postal_code):
     with Session(engine) as session:
         new_user = User(
             telegram_id=telegram_id,
             telegram_handle=telegram_handle,
             name=name,
             phone_number=phone_number,
+            country=country,
             address=address,
             postal_code=postal_code,
             cart_msg_id='',

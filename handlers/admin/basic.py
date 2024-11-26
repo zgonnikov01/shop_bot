@@ -19,7 +19,7 @@ router.message.filter(lambda message: message.from_user.id in config.tg_bot.admi
 
 
 @router.message(CommandStart())
-async def start(message: Message, bot: Bot):
+async def start(message: Message, bot: Bot, state: FSMContext):
     await set_admin_menu(message.from_user.id, bot)
     user = get_user_by_telegram_id(telegram_id=message.from_user.id)
     if user == None:
@@ -28,6 +28,7 @@ async def start(message: Message, bot: Bot):
             telegram_handle=message.from_user.username,
             name='-',
             phone_number='-',
+            country='-',
             address='-',
             postal_code='-'
         )
@@ -50,6 +51,7 @@ async def start(message: Message, bot: Bot):
         else:
             clear_cart(user.cart.id)
 
+    await state.clear()
     await message.answer(Lexicon.Admin.basic__start)
 
 

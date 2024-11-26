@@ -20,6 +20,20 @@ def transform_buttons(keys: dict[str, str], product_index: int, description_show
         ]
 
 
+def create_country_select_kb():
+    kb_builder = InlineKeyboardBuilder()
+    kb_builder.row(
+        *[
+            InlineKeyboardButton(text='Россия 🇷🇺', callback_data='Россия 🇷🇺'),
+            InlineKeyboardButton(text='Казахстан 🇰🇿', callback_data='Казахстан 🇰🇿'),
+            InlineKeyboardButton(text='Беларусь 🇧🇾', callback_data='Беларусь 🇧🇾'),
+            InlineKeyboardButton(text='Другая страна', callback_data='other')
+        ],
+        width=1
+    )
+    return kb_builder.as_markup()
+
+
 def create_product_card_keyboard(
     in_cart: int,
     product_index: int,
