@@ -13,10 +13,10 @@ from db.methods import (
     get_cart_by_telegram_id, 
     get_cart_item_by_telegram_id,
     get_user_by_telegram_id,
-    update_user
+    update_user,
 )
 from handlers.callbacks import NavigationCallback
-from handlers.user.cart import show_cart, delete_cart_message
+from handlers.user.cart import show_cart, delete_cart_message, update_cart_message
 from db.models import Product
 from keyboards.keyboards import create_product_card_keyboard
 from config import load_config
@@ -58,7 +58,6 @@ async def get_catalog(message: Message, bot: Bot, state: FSMContext):
 
     product = products[product_index]
 
-    # order_button = 'Заказать'
     cart_item = get_cart_item_by_telegram_id(
         telegram_id=message.from_user.id,
         product_id=product.id
@@ -122,9 +121,12 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
             await callback.answer(text=Lexicon.User.process_catalog_navigation__not_enough_product, show_alert=True)
             return
         else:
-            user = get_user_by_telegram_id(callback.from_user.id)
             if user.cart_msg_id:
-                await show_cart(message=callback.message, bot=bot, state=state, from_catalog=True)
+                #await show_cart(message=callback.message, bot=bot, state=state, from_catalog=True)
+                await update_cart_message(
+                    telegram_id=callback.from_user.id,
+                    bot=bot
+                )
         in_cart = cart_item.quantity
         
     elif callback_data.button == '-':
@@ -135,7 +137,11 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
         else:
             in_cart = 0
         if user.cart_msg_id:
-            await show_cart(message=callback.message, bot=bot, state=state, from_catalog=True)
+            #await show_cart(message=callback.message, bot=bot, state=state, from_catalog=True)
+            await update_cart_message(
+                telegram_id = callback.from_user.id,
+                bot=bot
+            )
         
     elif callback_data.button in ('next', 'prev'):
         if callback_data.button == 'next':
@@ -188,7 +194,7 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
             discount=product.discount,
             fold=callback_data.button == 'description_fold'
         )
-        description_button_action = 'unfold' if callback_data.button == 'description fold' else 'fold'
+        description_button_action = 'unfold' if callback_data.button == 'description_fold' else 'fold'
 
         await callback.message.edit_caption(
             business_connection_id=callback.message.business_connection_id,
@@ -200,6 +206,10 @@ async def process_catalog_navigation(callback: CallbackQuery, callback_data: Nav
         await callback.answer()
         return  
     
+    cart_item = get_cart_item_by_telegram_id(telegram_id=callback.from_user.id, product_id=product.id)
+    if cart_item:
+        in_cart = cart_item.quantity
+
     reply_markup = create_product_card_keyboard(
         in_cart=in_cart,
         product_index=product_index,

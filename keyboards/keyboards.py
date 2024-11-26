@@ -19,6 +19,7 @@ def transform_buttons(keys: dict[str, str], product_index: int, description_show
             for text, callback_data in keys.items()
         ]
 
+
 def create_product_card_keyboard(
     in_cart: int,
     product_index: int,
@@ -109,3 +110,4 @@ def create_reply_tracking_number_keyboard(user_telegram_id: int, order_id: int):
         )
     )
     return kb_builder.as_markup()
+

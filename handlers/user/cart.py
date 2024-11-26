@@ -12,6 +12,8 @@ from db.methods import (
     get_order,
     get_order_items_names,
     get_product, 
+    get_products,
+    decrease_stock,
     get_cart_by_telegram_id, 
     get_cart_items_by_telegram_id,
     get_user_by_telegram_id,
@@ -34,6 +36,8 @@ from sheets.orders import update_order_in_sheet
 from states.states import FSMPayment
 from keyboards.keyboards import create_inline_kb
 
+import sheets
+
 
 config = load_config()
 
@@ -47,6 +51,19 @@ async def delete_cart_message(message, user, bot):
         except Exception as e:
             pass
         update_user(user.id, cart_msg_id='')
+
+
+async def update_cart_message(telegram_id: str, bot: Bot):
+    cart_items_fancy = get_cart_items_by_telegram_id_fancy(telegram_id=telegram_id)
+    user = get_user_by_telegram_id(telegram_id=telegram_id)
+    try:
+        await bot.edit_message_text(
+            text=cart_items_fancy,
+            message_id=user.cart_msg_id,
+            chat_id=telegram_id
+        )
+    except Exception as e:
+        print(e)
 
 
 @router.message(Command(commands='cart'))
@@ -67,15 +84,16 @@ async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=
 
         msg = get_cart_items_by_telegram_id_fancy(telegram_id=message.chat.id)
 
-        # Просим пользователя проверить свои данные
-
-        reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Оформить заказ', callback_data='order_check_data')]])
-        sent_msg = await message.answer(
-            text=msg,
-            reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML
-        )
-        update_user(user.id, cart_msg_id=sent_msg.message_id)
+        try:
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Оформить заказ', callback_data='order_check_data')]])
+            sent_msg = await message.answer(
+                text=msg,
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML
+            )
+            update_user(user.id, cart_msg_id=sent_msg.message_id)
+        except Exception as e:
+            print(e)
     if not from_catalog:
         await message.delete()
 
@@ -148,6 +166,7 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
         
         await callback.answer()
 
+
         msg = await callback.message.answer(
             f'Совершите оплату по заказу:\n{payment_url}\nПосле оплаты нажмите на кнопку',
             reply_markup=create_payment_kb(
@@ -155,6 +174,15 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
                 order_id=order.id
             )
         )
+
+        try:
+            await bot.delete_message(
+                chat_id=callback.from_user.id,
+                message_id=user.order_msg_id
+            )
+            update_user(user_id=user.id, order_msg_id=msg.id)
+        except Exception as e:
+            print(e)
         
         await delete_cart_message(callback.message, user, bot)
 
@@ -170,10 +198,15 @@ async def confirm_payment(callback: CallbackQuery, callback_data: PaymentCallbac
     bill_number = callback_data.bill_number
     try:
         bill_status = get_bill_status(bill_number)['data'][bill_number]['status']
-        print(type(bill_status))
         user_id = callback.from_user.id
         order_details = get_cart_items_by_telegram_id_fancy(user_id)
         order_id = callback_data.order_id
+
+        decrease_stock(order_id=order_id)
+
+        products = get_products()
+        sheets.products.update(products=products)
+
         payment_msg_id = callback.message.message_id
         if bill_status == 10 or True:
             # Cообщаем пользователю, что заказ успешно оплачен

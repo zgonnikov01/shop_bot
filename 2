@@ -31,17 +31,17 @@ async def share_feedback(message: Message, state: FSMContext):
 
 @router.message(StateFilter(FSMSendFeedback.get_message))
 async def share_feedback_proceed(message: Message, bot: Bot, state: FSMContext):
-    msg = await bot.copy_message(
+    await bot.copy_message(
         message_id=message.message_id,
         chat_id=-1002473615887,
         message_thread_id=441,
         from_chat_id=message.from_user.id,
     )
-    await bot.send_message(
+    await message.reply(
+        message_id=msg.message_id,
         text=get_user_data_by_tg_id_fancy(user_tg_id=message.from_user.id),
-        chat_id=-1002473615887,
+        #chat_id=-1002473615887,
         message_thread_id=441,
-        reply_to_message_id=msg.message_id,
         parse_mode='HTML'
     )
     await message.answer(Lexicon.User.send_feedback__success)

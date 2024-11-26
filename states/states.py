@@ -35,5 +35,15 @@ class FSMSignUp(StatesGroup):
 class FSMPayment(StatesGroup):
     confirm = State()
 
+
 class FSMAddTrackingNumber(StatesGroup):
     request_number = State()
+
+
+class FSMCreateNotification(StatesGroup):
+    get_notification_message = State()
+
+
+class FSMSendFeedback(StatesGroup):
+    get_message = State()
+

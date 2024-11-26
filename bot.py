@@ -1,6 +1,7 @@
 import asyncio, sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.methods import DeleteWebhook
 from aiogram.fsm.storage.redis import RedisStorage, Redis
 from environs import Env
 
@@ -62,6 +63,7 @@ async def main():
 
     print('Bot is running')
 
+    await bot(DeleteWebhook(drop_pending_updates=True))
     await dp.start_polling(bot)
 
 

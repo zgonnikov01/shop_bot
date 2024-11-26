@@ -53,7 +53,7 @@ async def sign_up_get_full_name(message: Message, bot: Bot, state: FSMContext):
 async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
     try:
         trimmed = message.text.replace(' ', '').replace('-', '')
-        if len(trimmed) > 12 or len(trimmed) < 10:
+        if len(trimmed) != 11:
             raise Exception
         number = '+7' + trimmed[-10:]
 

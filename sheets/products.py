@@ -59,3 +59,16 @@ def set_id(name: str, id: int) -> None:
             wsh.update_cell(index + 2, field_map['ID'] + 1, id)
     print('updated')
     
+
+def update(products: list[Product]):
+    for product in products:
+        cell = wsh.find(str(product.id))  # Find the cell with the user ID
+        if cell:
+            try:
+                print(wsh.update_cell(cell.row, cell.col + 5, product.stock))
+                print(f'Product "{product.name}" stock updated successfully.')
+            except Exception as e:
+                print(f'Failed to update product "{product.name}": {e}')
+        else:
+            print(f'Product not found in the spreadsheet.')
+     

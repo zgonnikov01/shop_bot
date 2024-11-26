@@ -25,6 +25,7 @@ class User(Base):
     created_at: Mapped[created_at]
     cart_msg_id: Mapped[str]
     catalog_msg_id: Mapped[str]
+    order_msg_id: Mapped[str]
     
 
 class Product(Base):
@@ -78,3 +79,12 @@ class CartItem(Base):
     cart_id: Mapped[int] = mapped_column(ForeignKey('carts.id'))
     product_id: Mapped[int] = mapped_column(ForeignKey('products.id'))
     quantity: Mapped[int]
+
+
+class Notification(Base):
+    __tablename__ = 'notifications'
+    id: Mapped[intpk]
+    text: Mapped[str]
+    media: Mapped[str]
+    expire_datetime: Mapped[nullable_datetime]
+

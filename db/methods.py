@@ -1,8 +1,10 @@
+import datetime
+
 from sqlalchemy import create_engine, select, delete
 from sqlalchemy.orm import Session, selectinload
 
 from config import load_config
-from db.models import Base, User, Product, Order, OrderItem, Cart, CartItem
+from db.models import Base, User, Product, Order, OrderItem, Cart, CartItem, Notification
 import sheets
 import sheets.orders
 import sheets.products
@@ -226,13 +228,13 @@ def get_user_by_telegram_id(telegram_id):
 def get_cart_by_telegram_id(telegram_id):
     with Session(engine) as session:
         user = session.query(User).filter_by(telegram_id=telegram_id).options(selectinload(User.cart)).first()
-        cart = user.cart
+        cart = session.query(Cart).filter_by(owner_id=user.id).first()
         return cart
 
 def get_cart_items_by_telegram_id(telegram_id) -> list[CartItem]:
     with Session(engine) as session:
         user = session.query(User).filter_by(telegram_id=telegram_id).first()
-        cart = user.cart
+        cart = session.query(Cart).filter_by(owner_id=user.id).first()
         cart_items = session.query(CartItem).filter_by(cart_id=cart.id).all()
         return cart_items
     
@@ -240,7 +242,7 @@ def get_cart_items_by_telegram_id(telegram_id) -> list[CartItem]:
 def get_cart_items_by_telegram_id_fancy(telegram_id) -> str:
     with Session(engine) as session:
         user = session.query(User).filter_by(telegram_id=telegram_id).first()
-        cart = user.cart
+        cart = session.query(Cart).filter_by(owner_id=user.id).first()
         cart_items = session.query(CartItem).filter_by(cart_id=cart.id).all()
         result = []
         current_total = 0
@@ -250,7 +252,7 @@ def get_cart_items_by_telegram_id_fancy(telegram_id) -> str:
             quantity = cart_item.quantity
             discount = product.discount
             if discount > 0:
-                result.append(f'<s>{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.</s>')
+                #result.append(f'<s>{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.</s>')
                 discount_price = price - discount
                 result.append(f'{product.name}: {str(quantity)} * {str(discount_price)}р. = {str(quantity * discount_price)}р.')
                 current_total += quantity * discount_price
@@ -278,7 +280,7 @@ def get_order_items_fancy(order_id) -> str:
             quantity = order_item.quantity
             discount = product.discount
             if discount > 0:
-                result.append(f'<s>{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.</s>')
+                #result.append(f'<s>{product.name}: {str(quantity)} * {str(price)}р. = {str(quantity * price)}р.</s>')
                 discount_price = price - discount
                 result.append(f'{product.name}: {str(quantity)} * {str(discount_price)}р. = {str(quantity * discount_price)}р.')
                 total += quantity * discount_price
@@ -292,6 +294,18 @@ def get_order_items_fancy(order_id) -> str:
         result.append(f'\nОбщая сумма: {total + delivery_cost}р.')
         result = '\n'.join(result)
         return result
+
+
+def decrease_stock(order_id):
+    with Session(engine) as session:
+        order_items = session.query(OrderItem).filter_by(order_id=order_id).all()
+        for order_item in order_items:
+            product = get_product(order_item.product_id)
+            update_product(
+                product_id=order_item.product_id,
+                stock=product.stock - order_item.quantity
+            )
+        session.commit()
 
 
 def get_delivery_cost(order_id=None, cart_id=None):
@@ -331,6 +345,11 @@ def get_cart_item_by_telegram_id(telegram_id, product_id):
             return None
 
 
+def get_users():
+    with Session(engine) as session:
+        return session.query(User).all()
+
+
 def create_user(telegram_id, telegram_handle, name, phone_number, address, postal_code):
     with Session(engine) as session:
         new_user = User(
@@ -341,7 +360,8 @@ def create_user(telegram_id, telegram_handle, name, phone_number, address, posta
             address=address,
             postal_code=postal_code,
             cart_msg_id='',
-            catalog_msg_id=''
+            catalog_msg_id='',
+            order_msg_id=''
         )
         session.add(new_user)
         session.commit()
@@ -357,7 +377,8 @@ def create_user(telegram_id, telegram_handle, name, phone_number, address, posta
 def update_user(user_id, **kwargs):
     with Session(engine) as session:
         user = session.query(User).filter_by(id=user_id).first()
-        if 'cart' not in dir(user):
+        #if 'cart' not in dir(user):
+        if user.cart == None:
             user.cart = create_cart(owner_id=user.id)
         for key, value in kwargs.items():
             if hasattr(user, key):
@@ -386,6 +407,9 @@ def get_cart(owner_id=None) -> Cart:
 
 def create_cart(owner_id) -> Cart:
     with Session(engine) as session:
+        user = session.query(User).filter_by(id=owner_id).first()
+        if user.cart != None:
+            return user.cart
         new_cart = Cart(owner_id=owner_id, total=0)
         session.add(new_cart)
         session.commit()
@@ -442,8 +466,8 @@ def add_item_to_cart(cart_id, product_id) -> CartItem | str:
         
         cart = session.query(Cart).filter_by(id=cart_id).first()
         cart.total = cart.total + product.price - product.discount
-        session.commit()
-        session.refresh(cart)
+        #session.commit()
+        #session.refresh(cart)
         session.add(cart_item)
         session.commit()
         session.refresh(cart_item)
@@ -455,8 +479,8 @@ def remove_item_from_cart(cart_id, product_id, quantity=1):
         cart = session.query(Cart).filter_by(id=cart_id).first()
         product = session.query(Product).filter_by(id=product_id).first()
         cart.total = max(0, cart.total - (product.price - product.discount) * quantity)
-        session.commit()
-        session.refresh(cart)
+        #session.commit()
+        #session.refresh(cart)
 
         cart_item = session.query(CartItem).filter_by(
             cart_id=cart_id,
@@ -509,9 +533,22 @@ def get_cart_item(cart_id, product_id):
         ).first()
     
 
-# def create_order(owner_id) -> Cart:
-#     with Session(engine) as session:
-#         new_cart = Cart(owner_id=owner_id, total=0)
-#         session.add(new_cart)
-#         session.commit()
-#         return new_cart
+def create_notification(text, media, expire_datetime):
+    with Session(engine) as session:
+        notification = Notification(
+            text=text,
+            media=media,
+            expire_datetime=expire_datetime
+        )
+        session.add(notification)
+        session.commit()
+        session.refresh(notification)
+        return notification
+
+
+def get_notifications(include_expired=False):
+    with Session(engine) as session:
+        if include_expired:
+            return session.query(Notification).all()
+        return session.query(Notification).filter(Notification.expire_datetime > datetime.datetime.now()).all()
+
