@@ -52,11 +52,12 @@ async def sign_up_get_full_name(message: Message, bot: Bot, state: FSMContext):
 @router.message(StateFilter(FSMSignUp.get_number))
 async def sign_up_get_address(message: Message, bot: Bot, state: FSMContext):
     try:
-        trimmed = message.text.replace(' ', '').replace('-', '')
-        if len(trimmed) != 11:
-            raise Exception
-        number = '+7' + trimmed[-10:]
+        #trimmed = message.text.replace(' ', '').replace('-', '')
+        #if len(trimmed) != 11:
+        #    raise Exception
+        #number = '+7' + trimmed[-10:]
 
+        number = message.text
         await state.update_data(number=number)
 
         reply_markup = create_country_select_kb()

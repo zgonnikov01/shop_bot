@@ -74,7 +74,8 @@ async def update_cart_message(telegram_id: str, bot: Bot):
 
 @router.message(Command(commands='cart'))
 async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=False):
-    if not get_user_by_telegram_id(message.chat.id):
+    user = get_user_by_telegram_id(message.chat.id)
+    if not user:
         await message.answer('Сначала зарегистрируйтесь с помощью /sign_up')
     elif not get_cart_items_by_telegram_id(message.chat.id):
         try:

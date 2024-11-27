@@ -42,7 +42,7 @@ def load_config() -> Config:
 
     return Config(
         tg_bot=TgBot(
-            token=env.str('TEST_TOKEN'),
+            token=env.str('BOT_TOKEN'),
             admin_ids=[int(id) for id in env.list('ADMIN_IDS')]
         ),
         db=DatabaseConfig(
