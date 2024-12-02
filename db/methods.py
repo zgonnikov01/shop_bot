@@ -320,15 +320,16 @@ def get_delivery_cost(order_id=None, cart_id=None):
             total = cart.total
             user = session.query(User).filter_by(id=cart.owner_id).first()
          
-        if total < 5000:
-            if user.country == 'Россия 🇷🇺':
+        if user.country == 'Россия 🇷🇺':
+            if total < 5000:
                 return 350
-            if user.country == 'Казахстан 🇰🇿':
-                return 1000
-            if user.country == 'Беларусь 🇧🇾':
-                return 2000
+            else:
+                return 0
+        elif user.country == 'Казахстан 🇰🇿':
+            return 1000
+        elif user.country == 'Беларусь 🇧🇾':
+            return 1000
 
-        return 0
 
 
 def get_order_items_for_lifepay(order_id) -> str:
