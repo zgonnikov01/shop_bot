@@ -17,6 +17,7 @@ def create(user: User):
         user.telegram_handle,                           # Телеграм Handle
         user.name,                                      # Имя пользователя
         user.phone_number,                              # Номер телефона
+        user.country,                                   # Страна
         user.address,                                   # Адрес
         user.postal_code,                               # Почтовый индекс
         user.created_at.strftime("%Y-%m-%d %H:%M:%S"),  # Дата создания (formatted as YYYY-MM-DD HH:MM:SS)
@@ -38,6 +39,7 @@ def update(user: User):
             user.telegram_handle,                           # Телеграм Handle
             user.name,                                      # Имя пользователя
             user.phone_number,                              # Номер телефона
+            user.country,                                   # Страна
             user.address,                                   # Адрес
             user.postal_code,                               # Почтовый индекс
             user.created_at.strftime("%Y-%m-%d %H:%M:%S"),  # Дата создания (formatted as YYYY-MM-DD HH:MM:SS)
@@ -51,4 +53,5 @@ def update(user: User):
             print(f"Failed to update user {user.id}: {e}")
     else:
         print(f"User not found in the spreadsheet.")
+        create(user)
         

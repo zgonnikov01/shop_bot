@@ -22,7 +22,8 @@ from db.methods import (
     get_user_data_by_tg_id_fancy,
     update_cart,
     update_order,
-    update_user
+    update_user,
+    get_delivery_cost
 )
 from handlers.callbacks import PaymentCallback
 from keyboards.keyboards import create_payment_kb, create_reply_tracking_number_keyboard
@@ -122,7 +123,7 @@ async def process_order__check_data(callback: CallbackQuery, state: FSMContext, 
 @router.callback_query(F.data == 'order')
 async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
     user = get_user_by_telegram_id(callback.from_user.id)
-    if any([x == None or x == '-' for x in [user.name, user.phone_number, user.address, user.postal_code]]):
+    if any([x == None or x == '-' for x in [user.name, user.phone_number, user.address, user.postal_code, user.country]]):
         await callback.answer(
             text=Lexicon.User.process_order__,
             show_alert=True
@@ -140,20 +141,30 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
         )
         await state.clear()
         return
-
+    
+    msg_stock = await callback.message.answer('Проверяю состав заказа...')
     check_result = check_and_fix_cart_stock(telegram_id=callback.from_user.id)
+    await msg_stock.delete()
+
     if check_result:
         await callback.answer(
             text=Lexicon.User.process_order__check_stock + check_result,
             show_alert=True
         )
 
+    msg_create_order = await callback.message.answer('Добавляю заказ в систему')
+
     user = get_user_by_telegram_id(callback.from_user.id)
     cart = get_cart_by_telegram_id(callback.from_user.id)
-    delivery_cost = 350 if cart.total < 5000 else 0
+    delivery_cost = get_delivery_cost(cart_id=cart.id)
+
     order = create_order(telegram_id=callback.from_user.id, delivery_cost=delivery_cost)
     description = get_order_items_for_lifepay(order_id=order.id)
+
+    await msg_create_order.delete()
     try:
+        
+        msg_lifepay = await callback.message.answer('Передаю данные в платёжную систему...')
 
         bill = create_bill(
             amount=order.total,
@@ -161,10 +172,16 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
             customer_phone=user.phone_number.strip('+').replace(' ', '')
         )
 
+        await msg_lifepay.delete()
+
         print(bill)
 
         if bill['code'] != 0:
-            raise Exception
+            msg_code = (await callback.message.answer('Извините, что-то пошло не так.\n\nПожалуйста, попробуйте через несколько минут'))
+            await state.clear()
+            await callback.answer()
+            return
+
         payment_url = bill['data']['paymentUrl']
         
         await state.set_state(FSMPayment.confirm)
@@ -194,6 +211,7 @@ async def process_order(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await delete_cart_message(callback.message, user, bot)
 
     except Exception as e:
+        await msg_lifepay.delete()
         print(e)
         msg: Message = (await callback.message.answer('Извините, что-то пошло не так. Пожалуйста, проверьте ваши данные на соответствие шаблону, используя команду /sign_up'))
         await state.clear()
@@ -209,10 +227,9 @@ async def confirm_payment(callback: CallbackQuery, callback_data: PaymentCallbac
         order_details = get_cart_items_by_telegram_id_fancy(user_id)
         order_id = callback_data.order_id
 
-        decrease_stock(order_id=order_id)
-
-        products = get_products()
-        sheets.products.update(products=products)
+        # Изменяем данные об остатках в бд и таблице
+        decrease_data = decrease_stock(order_id=order_id)
+        sheets.products.decrease_stock(decrease_data=decrease_data)
 
         payment_msg_id = callback.message.message_id
         if bill_status == 10 or True:
@@ -251,9 +268,10 @@ async def confirm_payment(callback: CallbackQuery, callback_data: PaymentCallbac
                 order=get_order(order_id),
                 order_items_names=get_order_items_names(order_id=order_id)
             )
-            
+
             # Очищаем корзину
-            clear_cart(cart_id=get_cart_by_telegram_id(callback.from_user.id).id)
+            cart_id = get_cart_by_telegram_id(callback.from_user.id).id
+            clear_cart(cart_id)
 
             await state.clear()
         else:
@@ -267,9 +285,4 @@ async def confirm_payment(callback: CallbackQuery, callback_data: PaymentCallbac
         await callback.answer('Ошибка')
         
     await callback.answer()
-    # callback.message.answer(get_bill_status(bill_number))
 
-
-@router.message(Command(commands=['check']))
-async def check_state(message: Message, state: FSMContext, bot: Bot):
-    await message.answer('admin:', reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Написать админу', url='tg://user?id=449769108')]]))

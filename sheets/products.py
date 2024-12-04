@@ -72,3 +72,16 @@ def update(products: list[Product]):
         else:
             print(f'Product not found in the spreadsheet.')
      
+
+def decrease_stock(decrease_data):
+    for dd in decrease_data:
+        product_id, product_stock = dd
+        cell = wsh.find(str(product_id))
+        if cell:
+            try:
+                wsh.update_cell(cell.row, cell.col + 5, product_stock)
+            except Exception as e:
+                print(f'Failed to update product "{product_id}": {e}')
+        else:
+            print(f'Product not found in the spreadsheet.')
+

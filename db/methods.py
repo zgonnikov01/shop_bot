@@ -215,7 +215,7 @@ def get_user_data_by_tg_id_fancy(user_tg_id, minimize=False):
         f'ФИО: {user.name}',
         f'Телефон: {user.phone_number}',
         f'Страна: {user.country}',
-        f'Адрес: {user.address}',
+        f'Адрес удобного ПВЗ: {user.address}',
         f'Почтовый индекс: {user.postal_code}'
     ]
     return '\n'.join(data)
@@ -301,13 +301,16 @@ def get_order_items_fancy(order_id) -> str:
 def decrease_stock(order_id):
     with Session(engine) as session:
         order_items = session.query(OrderItem).filter_by(order_id=order_id).all()
+        res = []
         for order_item in order_items:
             product = get_product(order_item.product_id)
+            res.append([order_item.product_id, product.stock - order_item.quantity])
             update_product(
                 product_id=order_item.product_id,
                 stock=product.stock - order_item.quantity
             )
         session.commit()
+        return res
 
 
 def get_delivery_cost(order_id=None, cart_id=None):
@@ -418,6 +421,7 @@ def get_cart(owner_id=None) -> Cart:
     with Session(engine) as session:
         cart = session.query(Cart).filter_by(owner_id=owner_id).first()
         return cart
+
 
 def create_cart(owner_id) -> Cart:
     with Session(engine) as session:
