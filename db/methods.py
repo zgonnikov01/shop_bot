@@ -263,10 +263,14 @@ def get_cart_items_by_telegram_id_fancy(telegram_id) -> str:
                 current_total += quantity * price
         update_cart(cart_id=cart.id, total=current_total)
 
-        delivery_cost = get_delivery_cost(cart_id=cart.id)
+        if any([x == None or x == '-' for x in [user.name, user.phone_number, user.address, user.postal_code, user.country]]):
+            result.append(f'\nОбщая сумма: {cart.total}р.\n')
+            result.append(f'*Стоимость доставки будет рассчитана после регистрации')
+        else:
+            delivery_cost = get_delivery_cost(cart_id=cart.id)
+            result.append(f'Стоимость доставки: {delivery_cost}р.')
+            result.append(f'\nОбщая сумма: {cart.total + delivery_cost}р.')
 
-        result.append(f'Стоимость доставки: {delivery_cost}р.')
-        result.append(f'\nОбщая сумма: {cart.total + delivery_cost}р.')
         result = '\n'.join(result)
         return result
     

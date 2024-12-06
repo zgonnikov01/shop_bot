@@ -91,7 +91,6 @@ async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=
         await delete_cart_message(message, user, bot)
 
         msg = get_cart_items_by_telegram_id_fancy(telegram_id=message.chat.id)
-
         try:
             reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Оформить заказ', callback_data='order_check_data')]])
             sent_msg = await message.answer(
@@ -108,15 +107,21 @@ async def show_cart(message: Message, bot: Bot, state: FSMContext, from_catalog=
 
 @router.callback_query(F.data == 'order_check_data')
 async def process_order__check_data(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    msg = Lexicon.User.process_order__check_data + get_user_data_by_tg_id_fancy(user_tg_id=callback.from_user.id, minimize=True)
-    reply_markup = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text='Редактировать мои данные', callback_data='sign_up')],
-            [InlineKeyboardButton(text='Оформить заказ', callback_data='order')]
-        ]
-    )
-
-    await callback.message.answer(text=msg, reply_markup=reply_markup)
+    user = get_user_by_telegram_id(telegram_id=callback.from_user.id)
+    if any([x == None or x == '-' for x in [user.name, user.phone_number, user.address, user.postal_code, user.country]]):
+        msg = Lexicon.User.process_orger__check_data__force_sign_up
+        reply_markup = InlineKeyboardMarkup(
+            inline_keyboard = [[InlineKeyboardButton(text='Зарегистрироваться', callback_data='sign_up')]]
+        )
+    else:
+        msg = Lexicon.User.process_order__check_data + get_user_data_by_tg_id_fancy(user_tg_id=callback.from_user.id, minimize=True)
+        reply_markup = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text='Редактировать мои данные', callback_data='sign_up')],
+                [InlineKeyboardButton(text='Оформить заказ', callback_data='order')]
+            ]
+        )
+    msg = await callback.message.answer(text=msg, reply_markup=reply_markup)
     await callback.answer()
 
 
